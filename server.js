@@ -5,6 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const schedule = require('node-schedule');
 const {sendMail} = require('./mailer');
+const fs = require('fs');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -76,7 +77,7 @@ function scheduleAction(dataId, scheduledDate) {
   // Schedule the action using node-schedule
   const job = schedule.scheduleJob(scheduledDate, async function() {
     // Perform the action here
-    console.log(`Action scheduled for data ID ${dataId} executed at ${scheduledDate}`);
+    // console.log(`Action scheduled for data ID ${dataId} executed at ${scheduledDate}`);
     try {
       // Retrieve data from the database
       const data = await Data.findById(dataId);
@@ -88,7 +89,8 @@ function scheduleAction(dataId, scheduledDate) {
       // Perform the action using the retrieved data
       // console.log(`Action scheduled for data ID ${dataId} executed at ${scheduledDate}`);
       // console.log('Retrieved data:', data);
-      sendMail(data)
+      const emailId = sendMail(data)
+      logToDB(`Email from ${data.email} sent to ${data.toemail} with ID ${emailId} at ${scheduledDate}`)
     } catch (error) {
       console.error('Error scheduled action:', error);
     }
@@ -101,6 +103,74 @@ function scheduleAction(dataId, scheduledDate) {
 app.get('/success', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'success.html'));
 });
+
+app.post('/delete-files', (req, res) => {
+  try {
+    deleteFilesInUploadsDir();
+    res.redirect('/files-delete-success');
+  } catch (error) {
+    console.error('Error deleting files:', error);
+    res.status(500).send('Error deleting files');
+  }
+});
+
+app.get('/files-delete-success', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'files-delete-success.html'));
+});
+
+const uploadsDir = path.join(__dirname, 'uploads');
+const exceptions = ['.gitkeep']; // Define exceptions here
+
+// Function to delete files in uploads directory except for those in exceptions
+function deleteFilesInUploadsDir() {
+    fs.readdir(uploadsDir, (err, files) => {
+        if (err) {
+            console.error('Error reading directory:', err);
+            return;
+        }
+
+        files.forEach(file => {
+            if (!exceptions.includes(file)) { // Check if file is not in exceptions
+                const filePath = path.join(uploadsDir, file);
+                fs.unlink(filePath, err => {
+                    if (err) {
+                        console.error('Error deleting file:', err);
+                        return;
+                    }
+                    // console.log(`${file} has been deleted successfully`);
+                });
+            }
+        });
+    });
+}
+
+const logSchema = new Schema({
+  timestamp: { type: Date, default: Date.now },
+  message: String
+});
+const Log = mongoose.model('Log', logSchema);
+
+app.get('/logs', (req, res) => {
+  Log.find().sort({ timestamp: -1 })
+    .then(logs => {
+      res.json(logs);
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).send('Error retrieving logs');
+    });
+});
+
+function logToDB(message) {
+  const newLog = new Log({ message });
+  newLog.save()
+    // .then(() => {
+    //   console.log('Log saved successfully');
+    // })
+    .catch(err => {
+      console.error('Error saving log:', err);
+    });
+}
 
 // Start the server
 app.listen(port, () => {

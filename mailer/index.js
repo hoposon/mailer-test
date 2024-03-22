@@ -12,7 +12,7 @@ const nodemailer = require("nodemailer");
 
 // async..await is not allowed in global scope, must use a wrapper
 async function sendMail(data) {
-  console.log('🚀 ~ sendMail ~ data:', data)
+  // console.log('🚀 ~ sendMail ~ data:', data)
   // send mail with defined transport object
   try {
     const transporter = nodemailer.createTransport({
@@ -50,6 +50,7 @@ async function sendMail(data) {
     });
   
     console.log("Message sent: %s", info.messageId);
+    return info.messageId;
     // Message sent: <d786aa62-4e0a-070a-47ed-0b0666549519@ethereal.email>
   } catch(e) {
     console.error(e);

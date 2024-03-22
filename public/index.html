@@ -1,20 +1,49 @@
 <!-- public/index.html -->
-<form action="/submit" method="POST" enctype="multipart/form-data">
-  <label for="name">Name:</label><br>
-  <input type="text" id="name" name="name"><br>
-  <label for="email">Email:</label><br>
-  <input type="email" id="email" name="email"><br>
-  <label for="toemail">Send to email:</label><br>
-  <input type="email" id="toemail" name="toemail"><br>
-  <label for="password">Password:</label><br>
-  <input type="password" id="password" name="password"><br>
-  <label for="subject">Subject:</label><br>
-  <input type="text" id="subject" name="subject"><br>
-  <label for="mailText">Mail Text:</label><br>
-  <textarea id="mailText" name="mailText"></textarea><br>
-  <label for="attachments">Attachments:</label><br>
-  <input type="file" id="attachments" name="attachments" multiple><br>
-  <label for="datetime">Date and Time:</label><br>
-  <input type="datetime-local" id="datetime" name="datetime" step="1"><br>
-  <input type="submit" value="Submit">
-</form>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home Page</title>
+</head>
+<body>
+  <form action="/submit" method="POST" enctype="multipart/form-data">
+    <label for="name">Name:</label><br>
+    <input type="text" id="name" name="name"><br>
+    <label for="email">Email:</label><br>
+    <input type="email" id="email" name="email"><br>
+    <label for="toemail">Send to email:</label><br>
+    <input type="email" id="toemail" name="toemail"><br>
+    <label for="password">Password:</label><br>
+    <input type="password" id="password" name="password"><br>
+    <label for="subject">Subject:</label><br>
+    <input type="text" id="subject" name="subject"><br>
+    <label for="mailText">Mail Text:</label><br>
+    <textarea id="mailText" name="mailText"></textarea><br>
+    <label for="attachments">Attachments:</label><br>
+    <input type="file" id="attachments" name="attachments" multiple><br>
+    <label for="datetime">Date and Time:</label><br>
+    <input type="datetime-local" id="datetime" name="datetime" step="1"><br>
+    <input type="submit" value="Submit">
+  </form>
+
+  <style>
+    .management {
+      margin-top: 60px;
+      display: flex;
+      gap: 30px;
+    }
+  </style>
+
+  <div class="management">
+
+    <form action="/delete-files" method="POST" class="delete-files">
+      <input type="submit" value="Delete Files">
+    </form>
+
+    <form action="/delete-files" method="POST" class="logs">
+      <input type="submit" value="See logs">
+    </form>
+
+  </div>
+</body>
