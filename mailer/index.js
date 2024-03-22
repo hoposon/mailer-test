@@ -29,7 +29,7 @@ async function sendMail(data) {
 
     const info = await transporter.sendMail({
       from: `"${data.name}" <${data.email}>`,//'"Lukas Houf" <lukas.houf@centrum.cz>', // sender address
-      to: "lukas.houf@gmail.com, hoposon@gmail.com", // list of receivers
+      to: `${data.toemail}`, // "lukas.houf@gmail.com, hoposon@gmail.com", // list of receivers
       subject: `${data.subject}`, //"Lukas Houf CV", // Subject line
       // text: `${data.mailText}`,//"", // plain text body
       html: `${data.mailText}`,//"<p>Hello,</br> my name is Lukas Houf and I am sending my CV in the attachment. I hope you will find it interesting and I am looking forward to your response. </br></br>Have a nice day. </br>Lukas Houf</p>", // html body

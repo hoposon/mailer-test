@@ -23,6 +23,7 @@ const Schema = mongoose.Schema;
 const dataSchema = new Schema({
   name: String,
   email: String,
+  toemail: String,
   password: String,
   subject: String,
   mailText: String,
@@ -49,7 +50,7 @@ const upload = multer({ storage: storage });
 
 // Routes
 app.post('/submit', upload.array('attachments', 5), (req, res) => {
-  const { name, email, password, subject, mailText, datetime } = req.body;
+  const { name, email, toemail, password, subject, mailText, datetime } = req.body;
   const attachments = req.files.map(file => {
     return {
       filename: file.originalname,
@@ -58,7 +59,7 @@ app.post('/submit', upload.array('attachments', 5), (req, res) => {
     };
   });
   
-  const newData = new Data({ name, email, password, subject, mailText, sendTime:datetime, attachments });
+  const newData = new Data({ name, email, toemail, password, subject, mailText, sendTime:datetime, attachments });
   newData.save()
     .then(() => {
       // Schedule the action
