@@ -1,5 +1,7 @@
 db.help
 
-uploads
+uploads/*
+
+!uploads/.gitkeep
 
 node_modules
