@@ -150,7 +150,7 @@ const logSchema = new Schema({
 });
 const Log = mongoose.model('Log', logSchema);
 
-app.get('/logs', (req, res) => {
+app.post('/logs', (req, res) => {
   Log.find().sort({ timestamp: -1 })
     .then(logs => {
       res.json(logs);
