@@ -69,8 +69,17 @@ const upload = multer({ storage: storage });
 
 // helper functions
 async function scheduleAction(dataId, scheduledDate) {
+  // Get the current time on the server
+  const serverTime = new Date();
+    
+  // Adjust the scheduled datetime to match the server's timezone
+  const adjustedDateTime = new Date(
+    scheduledDate.getTime() + (serverTime.getTimezoneOffset() * 60000)
+  );
+
+
   // Schedule the action using node-schedule
-  const job = schedule.scheduleJob(scheduledDate, async function() {
+  const job = schedule.scheduleJob(adjustedDateTime, async function() {
     // Perform the action here
     // console.log(`Action scheduled for data ID ${dataId} executed at ${scheduledDate}`);
     try {
