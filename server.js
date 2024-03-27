@@ -22,6 +22,7 @@ mongoose.connect(`mongodb+srv://${process.env.DB_NAME}:${process.env.DB_PSWD}@db
 // Schema definition
 const Schema = mongoose.Schema;
 const dataSchema = new Schema({
+  timestamp: { type: Date, default: Date.now },
   name: String,
   email: String,
   toemail: String,
@@ -73,7 +74,7 @@ app.post('/submit', upload.array('attachments', 5), (req, res) => {
   });
 });
 
-function scheduleAction(dataId, scheduledDate) {
+async function scheduleAction(dataId, scheduledDate) {
   // Schedule the action using node-schedule
   const job = schedule.scheduleJob(scheduledDate, async function() {
     // Perform the action here
@@ -89,8 +90,8 @@ function scheduleAction(dataId, scheduledDate) {
       // Perform the action using the retrieved data
       // console.log(`Action scheduled for data ID ${dataId} executed at ${scheduledDate}`);
       // console.log('Retrieved data:', data);
-      const emailId = sendMail(data)
-      logToDB(`Email from ${data.email} sent to ${data.toemail} with ID ${emailId} at ${scheduledDate}`)
+      const emailId = await sendMail(data)
+      logToDB(`Email from ${data.email} sent to ${data.toemail} with ID ${emailId} at ${scheduledDate}. Send scheduled at ${data.timestamp}. Current time: ${new Date()}`)
     } catch (error) {
       console.error('Error scheduled action:', error);
     }
