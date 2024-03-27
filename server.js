@@ -17,7 +17,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // MongoDB Connection
 // mongoose.connect('mongodb://127.0.0.1:27017/mailerdb?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.2.1');
-mongoose.connect(`mongodb+srv://${process.env.DB_NAME}:${process.env.DB_PSWD}@db-mongodb-nyc3-41851-4069eb8b.mongo.ondigitalocean.com/nodemailer?replicaSet=db-mongodb-nyc3-41851&tls=true&authSource=admin`);
+mongoose.connect(`mongodb+srv://${process.env.DB_NAME}:${process.env.DB_PSWD}@db-mongodb-nyc3-41851-4069eb8b.mongo.ondigitalocean.com/nodemailer?replicaSet=db-mongodb-nyc3-41851&tls=true&authSource=admin`)
+.then(() => console.log('Connected to MongoDB'))
+.catch(err => console.error('Error connecting to MongoDB:', err));
 
 // Schema definition
 const Schema = mongoose.Schema;
@@ -91,7 +93,7 @@ async function scheduleAction(dataId, scheduledDate) {
       // console.log(`Action scheduled for data ID ${dataId} executed at ${scheduledDate}`);
       // console.log('Retrieved data:', data);
       const emailId = await sendMail(data)
-      logToDB(`Email from ${data.email} sent to ${data.toemail} with ID ${emailId} at ${scheduledDate}. Send scheduled at ${data.timestamp}. Current time: ${new Date()}`)
+      logToDB(`Email from ${data.email} sent to ${data.toemail}. Subject: ${data.subject}. Email submited at ${data.timestamp}, send scheduled to ${scheduledDate}. Current time: ${new Date()}, Email ID ${emailId}`)
     } catch (error) {
       console.error('Error scheduled action:', error);
     }
@@ -172,6 +174,22 @@ function logToDB(message) {
       console.error('Error saving log:', err);
     });
 }
+
+// Route to delete logs
+app.delete('/delete-logs', (req, res) => {
+  Log.deleteMany({})
+    .then(() => {
+      res.redirect('/logs-delete-success');
+    })
+    .catch(err => {
+      console.error('Error deleting logs:', err);
+      res.status(500).send('Error deleting logs');
+    });
+});
+
+app.get('/logs-delete-success', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'logs-delete-success.html'));
+});
 
 // Start the server
 app.listen(port, () => {

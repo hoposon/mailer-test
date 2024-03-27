@@ -31,19 +31,32 @@
     .management {
       margin-top: 60px;
       display: flex;
+      flex-direction: column;
+      gap: 30px;
+    }
+
+    .delete {
+      display: flex;
       gap: 30px;
     }
   </style>
 
   <div class="management">
 
-    <form action="/delete-files" method="POST" class="delete-files">
-      <input type="submit" value="Delete Files">
-    </form>
-
     <form action="/logs" method="POST" class="logs">
       <input type="submit" value="See logs">
     </form>
+
+    <div class="delete">
+
+      <form action="/delete-logs" method="POST" class="files">
+        <input type="submit" value="Delete logs">
+      </form>
+
+      <form action="/delete-files" method="POST" class="delete-files">
+        <input type="submit" value="Delete Files">
+      </form>
+    </div>   
 
   </div>
 </body>
