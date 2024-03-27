@@ -7,6 +7,19 @@
   <title>Home Page</title>
 </head>
 <body>
+  <script>
+    function getTimezone() {
+      // Get the timezone from the browser
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      // console.log('🚀 ~ getTimezone ~ timezone:', timezone)
+    
+      // Set the timezone value to the hidden input field
+      document.getElementById('timezone').value = timezone;
+    
+      // Optionally, you can also display the timezone to the user
+      // alert('Timezone: ' + timezone);
+    }
+    </script>
   <form action="/submit" method="POST" enctype="multipart/form-data">
     <label for="name">Name:</label><br>
     <input type="text" id="name" name="name"><br>
@@ -23,7 +36,9 @@
     <label for="attachments">Attachments:</label><br>
     <input type="file" id="attachments" name="attachments" multiple><br>
     <label for="datetime">Date and Time:</label><br>
-    <input type="datetime-local" id="datetime" name="datetime" step="1"><br>
+    <input type="datetime-local" id="datetime" name="datetime" step="1" onblur="getTimezone()"><br>
+    <!-- Hidden input field to store the timezone -->
+    <input type="hidden" id="timezone" name="timezone">
     <input type="submit" value="Submit">
   </form>
 

@@ -32,6 +32,7 @@ const dataSchema = new Schema({
   subject: String,
   mailText: String,
   sendTime: Date,
+  timezone: String,
   attachments: [{
     filename: String,
     path: String,
@@ -68,18 +69,17 @@ const upload = multer({ storage: storage });
 
 
 // helper functions
-async function scheduleAction(dataId, scheduledDate) {
+async function scheduleAction(dataId, scheduledDate, timezone) {
+
+  const userMoment = moment.tz(scheduledDate, timezone);
   // Get the current time on the server
-  const serverTime = new Date();
-    
-  // Adjust the scheduled datetime to match the server's timezone
-  const adjustedDateTime = new Date(
-    scheduledDate.getTime() + (serverTime.getTimezoneOffset() * 60000)
-  );
+  const serverTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  const serverMoment = userMoment.clone().tz(serverTimezone);
 
 
   // Schedule the action using node-schedule
-  const job = schedule.scheduleJob(adjustedDateTime, async function() {
+  const job = schedule.scheduleJob(serverMoment.toDate(), async function() {
     // Perform the action here
     // console.log(`Action scheduled for data ID ${dataId} executed at ${scheduledDate}`);
     try {
@@ -150,7 +150,7 @@ function logToDB(message) {
 
 // Routes
 app.post('/submit', upload.array('attachments', 5), (req, res) => {
-  const { name, email, toemail, password, subject, mailText, datetime } = req.body;
+  const { name, email, toemail, password, subject, mailText, datetime, timezone } = req.body;
   const attachments = req.files.map(file => {
     return {
       filename: file.originalname,
@@ -159,11 +159,11 @@ app.post('/submit', upload.array('attachments', 5), (req, res) => {
     };
   });
   
-  const newData = new Data({ name, email, toemail, password, subject, mailText, sendTime:datetime, attachments });
+  const newData = new Data({ name, email, toemail, password, subject, mailText, sendTime:datetime, timezone, attachments });
   newData.save()
     .then(() => {
       // Schedule the action
-      scheduleAction(newData._id, datetime);
+      scheduleAction(newData._id, datetime, timezone);
       res.redirect('/success');
     })
     .catch(err => {
