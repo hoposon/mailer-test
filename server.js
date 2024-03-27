@@ -176,7 +176,7 @@ function logToDB(message) {
 }
 
 // Route to delete logs
-app.delete('/delete-logs', (req, res) => {
+app.post('/delete-logs', (req, res) => {
   Log.deleteMany({})
     .then(() => {
       res.redirect('/logs-delete-success');
