@@ -35,7 +35,7 @@
       gap: 30px;
     }
 
-    .delete {
+    .delete, .view {
       display: flex;
       gap: 30px;
     }
@@ -43,9 +43,15 @@
 
   <div class="management">
 
-    <form action="/logs" method="POST" class="logs">
-      <input type="submit" value="See logs">
-    </form>
+    <div class="view">
+      <form action="/logs" method="POST" class="logs">
+        <input type="submit" value="See logs">
+      </form>
+
+      <form action="/jobs" method="POST" class="logs">
+        <input type="submit" value="See jobs">
+      </form>
+    </div>    
 
     <div class="delete">
 

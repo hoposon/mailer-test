@@ -40,6 +40,20 @@ const dataSchema = new Schema({
 });
 const Data = mongoose.model('Data', dataSchema);
 
+const logSchema = new Schema({
+  timestamp: { type: Date, default: Date.now },
+  message: String
+});
+const Log = mongoose.model('Log', logSchema);
+
+const jobSchema = new mongoose.Schema({
+  cronExpression: String,
+  nextInvocation: Date
+});
+
+// Create a model based on the schema
+const Job = mongoose.model('Job', jobSchema);
+
 // File Upload Configuration
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -51,6 +65,79 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage: storage });
+
+
+// helper functions
+async function scheduleAction(dataId, scheduledDate) {
+  // Schedule the action using node-schedule
+  const job = schedule.scheduleJob(scheduledDate, async function() {
+    // Perform the action here
+    // console.log(`Action scheduled for data ID ${dataId} executed at ${scheduledDate}`);
+    try {
+      // Retrieve data from the database
+      const data = await Data.findById(dataId);
+      if (!data) {
+        console.error(`Data with ID ${dataId} not found`);
+        return;
+      }
+      
+      // Perform the action using the retrieved data
+      // console.log(`Action scheduled for data ID ${dataId} executed at ${scheduledDate}`);
+      // console.log('Retrieved data:', data);
+      const emailId = await sendMail(data)
+      logToDB(`Email from ${data.email} sent to ${data.toemail}. Subject: ${data.subject}. Email submited at ${data.timestamp}, send scheduled to ${scheduledDate}. Current time: ${new Date()}, Email ID ${emailId}`)
+    } catch (error) {
+      console.error('Error scheduled action:', error);
+    }
+  });
+
+  const newJob = new Job({
+    cronExpression: scheduledDate,
+    nextInvocation: job.nextInvocation()
+  });
+  newJob.save()
+    .catch(err => console.error(`Error saving job to database:`, err));
+}
+
+
+const uploadsDir = path.join(__dirname, 'uploads');
+const exceptions = ['.gitkeep']; // Define exceptions here
+// Function to delete files in uploads directory except for those in exceptions
+function deleteFilesInUploadsDir() {
+  fs.readdir(uploadsDir, (err, files) => {
+      if (err) {
+          console.error('Error reading directory:', err);
+          return;
+      }
+
+      files.forEach(file => {
+          if (!exceptions.includes(file)) { // Check if file is not in exceptions
+              const filePath = path.join(uploadsDir, file);
+              fs.unlink(filePath, err => {
+                  if (err) {
+                      console.error('Error deleting file:', err);
+                      return;
+                  }
+                  // console.log(`${file} has been deleted successfully`);
+              });
+          }
+      });
+  });
+}
+
+function logToDB(message) {
+  const newLog = new Log({ message });
+  newLog.save()
+    // .then(() => {
+    //   console.log('Log saved successfully');
+    // })
+    .catch(err => {
+      console.error('Error saving log:', err);
+    });
+}
+
+
+
 
 // Routes
 app.post('/submit', upload.array('attachments', 5), (req, res) => {
@@ -76,35 +163,31 @@ app.post('/submit', upload.array('attachments', 5), (req, res) => {
   });
 });
 
-async function scheduleAction(dataId, scheduledDate) {
-  // Schedule the action using node-schedule
-  const job = schedule.scheduleJob(scheduledDate, async function() {
-    // Perform the action here
-    // console.log(`Action scheduled for data ID ${dataId} executed at ${scheduledDate}`);
-    try {
-      // Retrieve data from the database
-      const data = await Data.findById(dataId);
-      if (!data) {
-        console.error(`Data with ID ${dataId} not found`);
-        return;
-      }
-      
-      // Perform the action using the retrieved data
-      // console.log(`Action scheduled for data ID ${dataId} executed at ${scheduledDate}`);
-      // console.log('Retrieved data:', data);
-      const emailId = await sendMail(data)
-      logToDB(`Email from ${data.email} sent to ${data.toemail}. Subject: ${data.subject}. Email submited at ${data.timestamp}, send scheduled to ${scheduledDate}. Current time: ${new Date()}, Email ID ${emailId}`)
-    } catch (error) {
-      console.error('Error scheduled action:', error);
-    }
-
-    // sendMail()
-  });
-}
-
 // Route for success page
 app.get('/success', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'success.html'));
+});
+
+app.post('/logs', (req, res) => {
+  Log.find().sort({ timestamp: -1 })
+    .then(logs => {
+      res.json(logs);
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).send('Error retrieving logs');
+    });
+});
+
+app.get('/jobs', (req, res) => {
+  Job.find()
+    .then(jobs => {
+      res.json(jobs);
+    })
+    .catch(err => {
+      console.error('Error retrieving jobs:', err);
+      res.status(500).send('Error retrieving jobs');
+    });
 });
 
 app.post('/delete-files', (req, res) => {
@@ -121,61 +204,7 @@ app.get('/files-delete-success', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'files-delete-success.html'));
 });
 
-const uploadsDir = path.join(__dirname, 'uploads');
-const exceptions = ['.gitkeep']; // Define exceptions here
 
-// Function to delete files in uploads directory except for those in exceptions
-function deleteFilesInUploadsDir() {
-    fs.readdir(uploadsDir, (err, files) => {
-        if (err) {
-            console.error('Error reading directory:', err);
-            return;
-        }
-
-        files.forEach(file => {
-            if (!exceptions.includes(file)) { // Check if file is not in exceptions
-                const filePath = path.join(uploadsDir, file);
-                fs.unlink(filePath, err => {
-                    if (err) {
-                        console.error('Error deleting file:', err);
-                        return;
-                    }
-                    // console.log(`${file} has been deleted successfully`);
-                });
-            }
-        });
-    });
-}
-
-const logSchema = new Schema({
-  timestamp: { type: Date, default: Date.now },
-  message: String
-});
-const Log = mongoose.model('Log', logSchema);
-
-app.post('/logs', (req, res) => {
-  Log.find().sort({ timestamp: -1 })
-    .then(logs => {
-      res.json(logs);
-    })
-    .catch(err => {
-      console.error(err);
-      res.status(500).send('Error retrieving logs');
-    });
-});
-
-function logToDB(message) {
-  const newLog = new Log({ message });
-  newLog.save()
-    // .then(() => {
-    //   console.log('Log saved successfully');
-    // })
-    .catch(err => {
-      console.error('Error saving log:', err);
-    });
-}
-
-// Route to delete logs
 app.post('/delete-logs', (req, res) => {
   Log.deleteMany({})
     .then(() => {
