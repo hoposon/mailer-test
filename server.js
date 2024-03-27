@@ -179,7 +179,7 @@ app.post('/logs', (req, res) => {
     });
 });
 
-app.get('/jobs', (req, res) => {
+app.post('/jobs', (req, res) => {
   Job.find()
     .then(jobs => {
       res.json(jobs);
