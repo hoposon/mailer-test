@@ -16,11 +16,15 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// MongoDB Connection
-// mongoose.connect('mongodb://127.0.0.1:27017/mailerdb?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.2.1');
-mongoose.connect(`mongodb+srv://${process.env.DB_NAME}:${process.env.DB_PSWD}@db-mongodb-nyc3-41851-4069eb8b.mongo.ondigitalocean.com/nodemailer?replicaSet=db-mongodb-nyc3-41851&tls=true&authSource=admin`)
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => console.error('Error connecting to MongoDB:', err));
+if (process.env.NODE_ENV === 'production') {
+  mongoose.connect(`mongodb+srv://${process.env.DB_NAME}:${process.env.DB_PSWD}@db-mongodb-nyc3-41851-4069eb8b.mongo.ondigitalocean.com/nodemailer?replicaSet=db-mongodb-nyc3-41851&tls=true&authSource=admin`)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('Error connecting to MongoDB:', err));
+} else {
+  // MongoDB Connection
+  mongoose.connect('mongodb://127.0.0.1:27017/mailerdb?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.2.1');
+}
+
 
 // Schema definition
 const Schema = mongoose.Schema;
@@ -95,7 +99,7 @@ async function scheduleAction(dataId, scheduledDate, timezone) {
       // console.log(`Action scheduled for data ID ${dataId} executed at ${scheduledDate}`);
       // console.log('Retrieved data:', data);
       const emailId = await sendMail(data)
-      logToDB(`Email from ${data.email} sent to ${data.toemail}. Subject: ${data.subject}. Email submited at ${data.timestamp}, send scheduled to ${scheduledDate}. Current time: ${new Date()}, Email ID ${emailId}`)
+      logToDB(`Email from ${data.email} sent to ${data.toemail}. Subject: ${data.subject}. Email submited at ${data.timestamp} (server time), send scheduled to ${scheduledDate}. Current time: ${new Date()} (server time), Email ID ${emailId}`)
     } catch (error) {
       console.error('Error scheduled action:', error);
     }
