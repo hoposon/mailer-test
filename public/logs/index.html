@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logs Page</title>
+</head>
+<body>
+  
+
+  <style>
+    body, html, div, p, input, label, textarea, h3 {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      padding: 50px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid black;
+    }
+
+    tr.fatal {
+      background-color: red;
+    }
+
+    tr.error {
+      background-color: #ffcccb;
+    }
+
+    tr.tr-header.success,.tr-header.info {
+      background-color: #4cff6a;
+    }
+
+    th, td {
+      border: 1px solid black;
+      padding: 8px;
+      text-align: left;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 50px;
+    }
+  </style>
+
+  <div class="main-form">
+    <div class="header">
+      <h3>Logs</h3>
+      <a href="/">Home</a>
+    </div>
+
+    <p>Auto refresh every 5s</p>
+
+    <div>
+      <label for="logLevel">Log Level:</label>
+      <select name="logLevel" id="logLevel">
+        <option value="">All</option>
+      </select>
+
+    <div id="logsTable"></div>
+
+    <script>
+      (async () => {
+  
+        const filtersAvailableValues = {
+          logLevel: [],
+          logType: [],
+        };
+    
+        const getLogs = async () => {
+          try {
+            const response = await fetch('/getLogs');
+            const data = await response.json();
+
+            let tableHtml = '<table>';
+            tableHtml += '<tr><th>Log Level</th><th>Log Type</th><th>Message</th></tr>';
+            data.forEach(log => {
+              if (!filtersAvailableValues.logLevel.includes(log.logLevel)) {
+                filtersAvailableValues.logLevel.push(log.logLevel);
+              }
+              if (!filtersAvailableValues.logType.includes(log.logType)) {
+                filtersAvailableValues.logType.push(log.logType);
+              }
+              const messages = log.message.split('|');
+              let line = 0;
+              messages.forEach(message => {
+                // console.log('🚀 ~ message:', message)
+                if (line === 0) {
+                  tableHtml += `<tr class="tr-header ${log.logLevel} ${log.logType}"><td>${log.logLevel}</td><td>${log.logType}</td><td>${message.trim()}</td></tr>`;
+                } else {
+                  tableHtml += `<tr class="${log.logLevel} ${log.logType}"><td></td><td></td><td>${message.trim().replace('<', '').replace('>', '')}</td></tr>`;
+                }
+                line++;
+              });
+            });
+            tableHtml += '</table>';
+
+            document.getElementById('logsTable').innerHTML = tableHtml;
+          } catch (error) {
+            console.error('Error:', error);
+          }
+        };
+    
+    
+        const logLevelSelect = document.getElementById('logLevel');
+        let selectedValue = '';
+        logLevelSelect.addEventListener('change', (event) => {
+          selectedValue = event.target.value;
+          const tableRows = document.querySelectorAll('tr');
+          tableRows.forEach(row => {
+            if (selectedValue === '') {
+              row.style.display = 'table-row';
+            } else {
+              if (row.classList.contains(selectedValue)) {
+                row.style.display = 'table-row';
+              } else {
+                row.style.display = 'none';
+              }
+            }
+          });
+        });
+    
+        const fillLogLevels = () => {
+          const defOption = document.createElement('option');
+          defOption.value = "";
+          defOption.textContent = "All";
+          logLevelSelect.innerHTML = '';
+          logLevelSelect.appendChild(defOption);
+          filtersAvailableValues.logLevel.forEach(level => {
+            const option = document.createElement('option');
+            option.value = level;
+            option.textContent = level;
+            logLevelSelect.appendChild(option);
+          });
+        };
+    
+        await getLogs();
+        fillLogLevels();
+    
+        window.setInterval(async () => {
+          filtersAvailableValues.logLevel = [];
+          filtersAvailableValues.logType = [];
+          await getLogs();
+          fillLogLevels();
+          if (selectedValue !== '') {
+            logLevelSelect.value = selectedValue;
+            logLevelSelect.dispatchEvent(new Event('change'));
+          }
+        }, 5000);
+      })();
+      
+    </script>
+
+  </body>
+</html>

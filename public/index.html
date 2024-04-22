@@ -13,6 +13,16 @@
       document.getElementById('timezone').value = timezone;
     }
 
+    function submitForm() {
+      const form = document.querySelector('.main-form');
+      getTimezone();
+
+      const editorContent = document.getElementById('mailTextEditor').innerHTML;
+      document.getElementById('mailText').value = editorContent;
+
+      form.submit();
+    }
+
     function displaySelectedFiles(input) {
       const files = input.files;
       const selectedFilesContainer = document.getElementById('selectedFiles');
@@ -45,6 +55,13 @@
 
     input {
       height: 30px;
+    }
+    
+    a {
+      display: block;
+      text-decoration: none;
+      /* color: #2e4284; */
+      /* height: 30px; */
     }
 
     .main-form {
@@ -102,13 +119,21 @@
       /* gap: 20px; */
     }
 
-    .mail input, .mail textarea {
+    .mail input {
       width: 100%;
     }
 
-    .mail textarea {
+    /* .mail textarea {
       height: 200px;
       max-height: 200px;
+    } */
+
+    .editor {
+        border: 1px solid #ccc;
+        height: 200px;
+        max-height: 200px;
+        padding: 10px;
+        overflow-y: scroll;
     }
 
     .attachments {
@@ -166,9 +191,11 @@
       height: 40px;
     }
 
+
+
   </style>
   
-  <form class="main-form" action="/submit" method="POST" enctype="multipart/form-data" onsubmit="getTimezone()">
+  <form class="main-form" action="/submit" method="POST" enctype="multipart/form-data" onsubmit="submitForm()">
     <h1>Schedule send email</h1>
     <p>Fill in the form below to send an email.</p>
     <p>There is no validation so make sure to fill in all the fields.</p>
@@ -184,7 +211,7 @@
       </div>
       <div class="sender-password">
         <label for="password">Password:</label>
-        <input type="password" id="password" name="password">
+        <input type="text" id="password" name="password">
       </div> 
     </div>
     <div class="recepient">
@@ -194,8 +221,10 @@
     <div class="mail">
       <label for="subject">Subject:</label>
       <input type="text" id="subject" name="subject">
-      <label for="mailText">Mail Text:</label>
-      <textarea id="mailText" name="mailText" rows="50"></textarea>
+      <label for="mailTextEditor">Mail Text:</label>
+      <div class="editor" name="mailTextEditor" contenteditable="true" id="mailTextEditor"></div>
+      <input type="hidden" name="mailText" id="mailText">
+      <!-- <textarea id="mailText" name="mailText" rows="50"></textarea> -->
     </div>
     <div class="attachments">
       <!-- <label for="attachments">Attachments:</label> -->
@@ -222,18 +251,19 @@
       gap: 30px;
     }
 
-    .management input {
+    .management input,a {
       display: flex;
       justify-content: center;
-      align-items: baseline;
-      padding: 10px;
+      align-items: center;
+      padding: 0 10px;
       background-color: #4CAF50;
       color: white;
       border: none;
       border-radius: 4px;
       cursor: pointer;
-      width: 100px;
+      /* width: 100px; */
       height: 40px;
+      font-size: 14px;
     }
 
     .delete, .view {
@@ -245,13 +275,15 @@
   <div class="management">
 
     <div class="view">
-      <form action="/logs" method="POST" class="logs">
+      <!-- <form action="/logs" method="POST" class="logs">
         <input type="submit" value="See logs">
-      </form>
+      </form> -->
+      <a href="/logs">View logs</a>
 
-      <form action="/jobs" method="POST" class="logs">
+      <!-- <form action="/jobs" method="POST" class="logs">
         <input type="submit" value="See jobs">
-      </form>
+      </form> -->
+      <a href="/jobs">View jobs</a>
     </div>    
 
     <div class="delete">
@@ -263,7 +295,23 @@
       <form action="/delete-files" method="POST" class="delete-files">
         <input type="submit" value="Delete Files">
       </form>
-    </div>   
+
+      <form action="/delete-jobs-db" method="POST" class="delete-jobs" id="delete-jobs" onsubmit="return deleteJobs()">
+        <input type="submit" value="Delete Jobs db">
+      </form>
+    </div>
+
+    <script>
+      const deleteJobs = () => {
+        // alert('This will only delete jobs from database. To cancel jobs on server go to "View jobs" and hit "Cancel all jobs" or cancel jobs individually.');
+        if (window.confirm('This will only delete jobs from database. To cancel jobs on server hit "View jobs" and hit "Cancel all jobs" or cancel jobs individually.')) {
+          const form = document.querySelector('.delete-jobs');
+          return true;
+        } else {
+          return false;
+        }
+      }
+    </script>
 
   </div>
 </body>

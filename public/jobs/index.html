@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jobs Page</title>
+</head>
+<body>
+  <script>
+
+    const getJobs = () => {
+      fetch('/getJobs')
+        .then(response => response.json())
+        .then(data => {
+          // console.log('🚀 ~ data:', data)
+          let tableHtml = '<table>';
+          data.forEach(job => {
+            tableHtml += `<tr><td>${job.scheduledTime}</td><td>${job.status}</td>`
+            if (job.jobId && job.status !== 'sent' && job.status !== 'cancelled') {
+              tableHtml += `<td><button onclick="cancelJob('${job.jobId}')">Cancel job</button></td></tr>`;
+            } else {
+              tableHtml += `<td></td></tr>`;
+            }
+          });
+          tableHtml += '</table>';
+
+          document.getElementById('jobsTable').innerHTML = tableHtml;
+        })
+        
+        .catch(error => {
+          console.error('Error:', error);
+        });
+
+      const cancelJob = (id) => {
+        // console.log('🚀 ~ cancelJob ~ id:', id)
+        fetch('/cancelJob', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ jobId: id }),
+        })
+          .then(() => {
+            console.log('Job cancelled');
+            window.location.reload();
+          })
+      };
+    };
+
+    getJobs();
+
+    window.setInterval(() => {
+      getJobs();
+    }, 5000);
+
+    const cancelAllJobs = () => {
+      fetch('/cancelAllJobs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+        .then(data => {
+          console.log('Jobs cancelled');
+          window.location.reload();
+        })
+    };
+
+    
+  </script>
+
+  <style>
+
+    body, html, div, p, input, label, textarea, h3 {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      padding: 50px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid black;
+    }
+
+    th, td {
+      border: 1px solid black;
+      padding: 8px;
+      text-align: left;
+      width: 33%;
+    }
+
+    button {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      /* padding: 10px; */
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 100px;
+      height: 40px;
+      font-size: 14px;
+    }
+
+    .cancel-all-btn {
+      margin: 20px;
+      width: 200px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  </style>
+
+  <div class="main-form">
+    <div class="header">
+      <h3>Jobs</h3>
+      <a href="/">Home</a>
+    </div>
+
+    <button class="cancel-all-btn" onclick="cancelAllJobs()">Cancel all jobs</button>
+
+    <p>Auto refresh every 5s</p>
+
+    <div id="jobsTable"></div>
+
+  </body>
+</html>

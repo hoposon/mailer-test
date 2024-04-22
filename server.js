@@ -7,9 +7,12 @@ const schedule = require('node-schedule');
 const moment = require('moment-timezone');
 const {sendMail} = require('./mailer');
 const fs = require('fs');
+const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+let jobsArray = [];
 
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -19,7 +22,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 if (process.env.NODE_ENV === 'production') {
   mongoose.connect(`mongodb+srv://${process.env.DB_NAME}:${process.env.DB_PSWD}@db-mongodb-nyc3-41851-4069eb8b.mongo.ondigitalocean.com/nodemailer?replicaSet=db-mongodb-nyc3-41851&tls=true&authSource=admin`)
   .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('Error connecting to MongoDB:', err));
+  .catch(error => console.error('Error connecting to MongoDB:', error));
 } else {
   // MongoDB Connection
   mongoose.connect('mongodb://127.0.0.1:27017/mailerdb?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.2.1');
@@ -48,12 +51,16 @@ const Data = mongoose.model('Data', dataSchema);
 
 const logSchema = new Schema({
   timestamp: { type: Date, default: Date.now },
+  logLevel: String,
+  logType: String,
   message: String
 });
 const Log = mongoose.model('Log', logSchema);
 
 const jobSchema = new mongoose.Schema({
-  cronExpression: String,
+  jobId: String,
+  status: { type: String, default: 'scheduled' },
+  scheduledTime: String,
   nextInvocation: Date
 });
 
@@ -84,33 +91,42 @@ async function scheduleAction(dataId, scheduledDate, timezone) {
 
 
   // Schedule the action using node-schedule
-  const job = schedule.scheduleJob(serverMoment.toDate(), async function() {
-    // Perform the action here
-    // console.log(`Action scheduled for data ID ${dataId} executed at ${scheduledDate}`);
-    try {
-      // Retrieve data from the database
-      const data = await Data.findById(dataId);
-      if (!data) {
-        console.error(`Data with ID ${dataId} not found`);
-        return;
+  let job;
+  const jobId = uuidv4();
+  try {
+    job = schedule.scheduleJob(serverMoment.toDate(), async function() {
+      try {
+        const data = await Data.findById(dataId);
+        if (!data) {
+          logToDB({logLevel: 'fatal', logType: 'Get email data', message: `Data with ID ${dataId} not found`});
+          return;
+        }
+
+        const emailInfo = await sendMail(data)
+        await Job.findOneAndUpdate({ jobId: jobId }, { status: 'sent' })
+        logToDB({logLevel: 'success', logType: 'Email sent', message: `Email from ${data.email} | Sent to ${data.toemail} | Subject: ${data.subject} | Schedule submitted at ${moment.tz(data.timestamp, timezone)} | Email sent scheduled to ${moment.tz(scheduledDate, timezone)} | Current time (actual time email was sent): ${moment.tz(new Date(), timezone)} | Email status: accepted-${emailInfo.accepted}, rejected-${emailInfo.rejected} | Email ID ${emailInfo.messageId}`})
+      } catch (error) {
+        console.error('Error scheduled action:', error);
+        logToDB({logLevel: 'fatal', logType: 'Email sending', message: `Error sending email: ${error}`})
       }
-      
-      // Perform the action using the retrieved data
-      // console.log(`Action scheduled for data ID ${dataId} executed at ${scheduledDate}`);
-      // console.log('Retrieved data:', data);
-      const emailId = await sendMail(data)
-      logToDB(`Email from ${data.email} sent to ${data.toemail}. Subject: ${data.subject}. Email submited at ${data.timestamp} (server time), send scheduled to ${scheduledDate}. Current time: ${new Date()} (server time), Email ID ${emailId}`)
-    } catch (error) {
-      console.error('Error scheduled action:', error);
-    }
-  });
+    });
+  } catch (error) {
+    logToDB({logLevel: 'fatal', logType: 'Email Schedule', message: `Error scheduling email: ${error}`})
+    throw 'Error scheduling job'
+  }
+  
+  jobsArray.push({id: jobId, job});
 
   const newJob = new Job({
-    cronExpression: scheduledDate,
+    jobId,
+    scheduledTime: scheduledDate,
     nextInvocation: job.nextInvocation()
   });
   newJob.save()
-    .catch(err => console.error(`Error saving job to database:`, err));
+    .catch(error => {
+      logToDB({logLevel: 'error', logType: 'Save job detail to db', message: `Error saving job to database: ${error} | Schedule submitted at ${moment.tz(data.timestamp, timezone)} | Email sent scheduled to ${moment.tz(scheduledDate, timezone)}`});
+      throw 'Error saving job to database';
+    })
 }
 
 
@@ -118,21 +134,20 @@ const uploadsDir = path.join(__dirname, 'uploads');
 const exceptions = ['.gitkeep']; // Define exceptions here
 // Function to delete files in uploads directory except for those in exceptions
 function deleteFilesInUploadsDir() {
-  fs.readdir(uploadsDir, (err, files) => {
-      if (err) {
-          console.error('Error reading directory:', err);
-          return;
+  fs.readdir(uploadsDir, (error, files) => {
+      if (error) {
+          logToDB({logLevel: 'minor', logType: 'Delete files manual', message: `Error reading directory: ${error}`});
+          throw 'Error reading directory';
       }
 
       files.forEach(file => {
           if (!exceptions.includes(file)) { // Check if file is not in exceptions
               const filePath = path.join(uploadsDir, file);
-              fs.unlink(filePath, err => {
-                  if (err) {
-                      console.error('Error deleting file:', err);
-                      return;
+              fs.unlink(filePath, error => {
+                  if (error) {
+                      logToDB({logLevel: 'minor', logType: 'Delete files manual - one file', message: `Error deleting file: ${file} | ${error}`});
+                      throw `Error deleting file: ${file}`;
                   }
-                  // console.log(`${file} has been deleted successfully`);
               });
           }
       });
@@ -140,13 +155,13 @@ function deleteFilesInUploadsDir() {
 }
 
 function logToDB(message) {
-  const newLog = new Log({ message });
+  const newLog = new Log( message );
   newLog.save()
     // .then(() => {
     //   console.log('Log saved successfully');
     // })
-    .catch(err => {
-      console.error('Error saving log:', err);
+    .catch(error => {
+      console.error('Error saving log:', error);
     });
 }
 
@@ -171,8 +186,8 @@ app.post('/submit', upload.array('attachments', 5), (req, res) => {
       scheduleAction(newData._id, datetime, timezone);
       res.redirect('/success');
     })
-    .catch(err => {
-      console.error(err);
+    .catch(error => {
+      logToDB({logLevel: 'fatal', logType: 'Submit email schedule', message: `Error submitting schedule: ${error}`});
       res.status(500).send('Error saving data');
   });
 });
@@ -182,26 +197,66 @@ app.get('/success', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'success.html'));
 });
 
-app.post('/logs', (req, res) => {
+app.get('/getLogs', (req, res) => {
   Log.find().sort({ timestamp: -1 })
     .then(logs => {
       res.json(logs);
     })
-    .catch(err => {
-      console.error(err);
+    .catch(error => {
+      console.error('Error retrieving logs:', error);
       res.status(500).send('Error retrieving logs');
+      logToDB({logLevel: 'error', logType: 'Retrieve logs', message: `Error retrieving logs: ${error}`});
     });
 });
 
-app.post('/jobs', (req, res) => {
+app.get('/getJobs', (req, res) => {
   Job.find()
     .then(jobs => {
       res.json(jobs);
     })
-    .catch(err => {
-      console.error('Error retrieving jobs:', err);
+    .catch(error => {
+      console.error('Error retrieving jobs:', error);
       res.status(500).send('Error retrieving jobs');
+      logToDB({logLevel: 'error', logType: 'Retrieve jobs', message: `Error retrieving jobs: ${error}`});
     });
+});
+
+app.post('/cancelJob', async (req, res) => {
+  console.log('🚀 ~ app.post ~ cancelJob:')
+  try {
+    const { jobId } = req.body;
+    const job = jobsArray.find(job => job.id === jobId);
+    if (job) {
+      job.job.cancel();
+      jobsArray.splice(jobsArray.indexOf(job), 1);
+    }
+
+    // Update the job status in the database
+    await Job.findOneAndUpdate({ jobId: jobId }, { status: 'cancelled' })
+    res.status(200).send('Job canceled successfully');
+    
+  } catch (error) {
+    console.error('Error cancelling job:', error);
+    res.redirect('/error');
+    logToDB({logLevel: 'fatal', logType: 'Cancel job', message: `Error cancelling job: ${error}`});
+  }
+});
+
+app.post('/cancelAllJobs', async (req, res) => {
+  console.log('🚀 ~ app.post ~ cancelAllJobs:')
+  try {
+    // Cancel all jobs
+    jobsArray.forEach(job => job.job.cancel());
+    jobsArray = [];
+
+    // Update all jobs in the database
+    await Job.updateMany({}, { status: 'cancelled' })
+    res.status(200).send('Jobs canceled successfully');
+  } catch (error) {
+    console.error('Error cancelling all jobs:', error);
+    res.redirect('/error');
+    logToDB({logLevel: 'fatal', logType: 'Cancel all jobs', message: `Error cancelling all jobs: ${error}`});
+  }
 });
 
 app.post('/delete-files', (req, res) => {
@@ -211,6 +266,7 @@ app.post('/delete-files', (req, res) => {
   } catch (error) {
     console.error('Error deleting files:', error);
     res.status(500).send('Error deleting files');
+    logToDB({logLevel: 'error', logType: 'Delete files', message: `Error deleting files: ${error}`});
   }
 });
 
@@ -224,14 +280,31 @@ app.post('/delete-logs', (req, res) => {
     .then(() => {
       res.redirect('/logs-delete-success');
     })
-    .catch(err => {
-      console.error('Error deleting logs:', err);
+    .catch(error => {
+      console.error('Error deleting logs:', error);
       res.status(500).send('Error deleting logs');
+      logToDB({logLevel: 'error', logType: 'Delete logs', message: `Error deleting logs: ${error}`});
     });
 });
 
 app.get('/logs-delete-success', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'logs-delete-success.html'));
+});
+
+app.post('/delete-jobs-db', (req, res) => {
+  Job.deleteMany({})
+    .then(() => {
+      res.redirect('/jobs-db-delete-success');
+    })
+    .catch(error => {
+      console.error('Error deleting jobs db:', error);
+      res.status(500).send('Error deleting jobs db');
+      logToDB({logLevel: 'error', logType: 'Delete jobs db', message: `Error deleting jobs db: ${error}`});
+    });
+});
+
+app.get('/jobs-db-delete-success', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'jobs-delete-success.html'));
 });
 
 // Start the server
