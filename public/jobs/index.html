@@ -26,25 +26,9 @@
 
           document.getElementById('jobsTable').innerHTML = tableHtml;
         })
-        
         .catch(error => {
           console.error('Error:', error);
         });
-
-      const cancelJob = (id) => {
-        // console.log('🚀 ~ cancelJob ~ id:', id)
-        fetch('/cancelJob', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ jobId: id }),
-        })
-          .then(() => {
-            console.log('Job cancelled');
-            window.location.reload();
-          })
-      };
     };
 
     getJobs();
@@ -52,6 +36,21 @@
     window.setInterval(() => {
       getJobs();
     }, 5000);
+
+    const cancelJob = (id) => {
+      // console.log('🚀 ~ cancelJob ~ id:', id)
+      fetch('/cancelJob', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ jobId: id }),
+      })
+        .then(() => {
+          console.log('Job cancelled');
+          window.location.reload();
+        })
+    };
 
     const cancelAllJobs = () => {
       fetch('/cancelAllJobs', {

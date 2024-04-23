@@ -74,6 +74,9 @@
           logLevel: [],
           logType: [],
         };
+
+        const logLevelSelect = document.getElementById('logLevel');
+        let selectedValue = '';
     
         const getLogs = async () => {
           try {
@@ -109,25 +112,6 @@
           }
         };
     
-    
-        const logLevelSelect = document.getElementById('logLevel');
-        let selectedValue = '';
-        logLevelSelect.addEventListener('change', (event) => {
-          selectedValue = event.target.value;
-          const tableRows = document.querySelectorAll('tr');
-          tableRows.forEach(row => {
-            if (selectedValue === '') {
-              row.style.display = 'table-row';
-            } else {
-              if (row.classList.contains(selectedValue)) {
-                row.style.display = 'table-row';
-              } else {
-                row.style.display = 'none';
-              }
-            }
-          });
-        });
-    
         const fillLogLevels = () => {
           const defOption = document.createElement('option');
           defOption.value = "";
@@ -155,6 +139,23 @@
             logLevelSelect.dispatchEvent(new Event('change'));
           }
         }, 5000);
+
+        logLevelSelect.addEventListener('change', (event) => {
+          selectedValue = event.target.value;
+          const tableRows = document.querySelectorAll('tr');
+          tableRows.forEach(row => {
+            if (selectedValue === '') {
+              row.style.display = 'table-row';
+            } else {
+              if (row.classList.contains(selectedValue)) {
+                row.style.display = 'table-row';
+              } else {
+                row.style.display = 'none';
+              }
+            }
+          });
+        });
+        
       })();
       
     </script>
