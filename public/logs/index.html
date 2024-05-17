@@ -82,9 +82,10 @@
           try {
             const response = await fetch('/getLogs');
             const data = await response.json();
+            console.log('🚀 ~ getLogs ~ data:', data)
 
             let tableHtml = '<table>';
-            tableHtml += '<tr><th>Log Level</th><th>Log Type</th><th>Message</th></tr>';
+            tableHtml += '<tr><th>Log Level</th><th>Log Type</th><th>Date</th><th>Message</th></tr>';
             data.forEach(log => {
               if (!filtersAvailableValues.logLevel.includes(log.logLevel)) {
                 filtersAvailableValues.logLevel.push(log.logLevel);
@@ -97,9 +98,9 @@
               messages.forEach(message => {
                 // console.log('🚀 ~ message:', message)
                 if (line === 0) {
-                  tableHtml += `<tr class="tr-header ${log.logLevel} ${log.logType}"><td>${log.logLevel}</td><td>${log.logType}</td><td>${message.trim()}</td></tr>`;
+                  tableHtml += `<tr class="tr-header ${log.logLevel} ${log.logType}"><td>${log.logLevel}</td><td>${log.logType}</td><td>${log.timestamp}</td><td>${message.trim()}</td></tr>`;
                 } else {
-                  tableHtml += `<tr class="${log.logLevel} ${log.logType}"><td></td><td></td><td>${message.trim().replace('<', '').replace('>', '')}</td></tr>`;
+                  tableHtml += `<tr class="${log.logLevel} ${log.logType}"><td></td><td></td><td></td><td>${message.trim().replace('<', '').replace('>', '')}</td></tr>`;
                 }
                 line++;
               });

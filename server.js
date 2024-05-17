@@ -84,16 +84,22 @@ const upload = multer({ storage: storage });
 async function scheduleAction(dataId, scheduledDate, timezone) {
 
   const userMoment = moment.tz(scheduledDate, timezone);
-  // Get the current time on the server
+
   const serverTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const serverMoment = userMoment.clone().tz(serverTimezone);
-
 
   // Schedule the action using node-schedule
   let job;
   const jobId = uuidv4();
   try {
+    const currentDate = moment.tz(new Date(), timezone)
+    const df = serverMoment.diff(currentDate, 'seconds')
+    if (df < 0) {
+      logToDB({logLevel: 'fatal', logType: 'Email Schedule', message: `Email scheduled in the past | Schedule submitted at ${moment.tz(new Date(), timezone)} | Email sent scheduled to ${moment.tz(scheduledDate, timezone)}`});
+      throw 'Email scheduled in the past';
+    }
+    
     job = schedule.scheduleJob(serverMoment.toDate(), async function() {
       try {
         const data = await Data.findById(dataId);
@@ -106,27 +112,27 @@ async function scheduleAction(dataId, scheduledDate, timezone) {
         await Job.findOneAndUpdate({ jobId: jobId }, { status: 'sent' })
         logToDB({logLevel: 'success', logType: 'Email sent', message: `Email from ${data.email} | Sent to ${data.toemail} | Subject: ${data.subject} | Schedule submitted at ${moment.tz(data.timestamp, timezone)} | Email sent scheduled to ${moment.tz(scheduledDate, timezone)} | Current time (actual time email was sent): ${moment.tz(new Date(), timezone)} | Email status: accepted-${emailInfo.accepted}, rejected-${emailInfo.rejected} | Email ID ${emailInfo.messageId}`})
       } catch (error) {
-        console.error('Error scheduled action:', error);
         logToDB({logLevel: 'fatal', logType: 'Email sending', message: `Error sending email: ${error}`})
       }
     });
+    jobsArray.push({id: jobId, job});
+
+    const newJob = new Job({
+      jobId,
+      scheduledTime: scheduledDate,
+      nextInvocation: job.nextInvocation()
+    });
+    newJob.save()
+      .catch(error => {
+        logToDB({logLevel: 'error', logType: 'Save job detail to db', message: `Error saving job to database: ${error} | Schedule submitted at ${moment.tz(data.timestamp, timezone)} | Email sent scheduled to ${moment.tz(scheduledDate, timezone)}`});
+        throw 'Error saving job to database';
+      })
   } catch (error) {
     logToDB({logLevel: 'fatal', logType: 'Email Schedule', message: `Error scheduling email: ${error}`})
     throw 'Error scheduling job'
   }
   
-  jobsArray.push({id: jobId, job});
-
-  const newJob = new Job({
-    jobId,
-    scheduledTime: scheduledDate,
-    nextInvocation: job.nextInvocation()
-  });
-  newJob.save()
-    .catch(error => {
-      logToDB({logLevel: 'error', logType: 'Save job detail to db', message: `Error saving job to database: ${error} | Schedule submitted at ${moment.tz(data.timestamp, timezone)} | Email sent scheduled to ${moment.tz(scheduledDate, timezone)}`});
-      throw 'Error saving job to database';
-    })
+  
 }
 
 
@@ -181,14 +187,19 @@ app.post('/submit', upload.array('attachments', 5), (req, res) => {
   
   const newData = new Data({ name, email, toemail, password, subject, mailText, sendTime:datetime, timezone, attachments });
   newData.save()
-    .then(() => {
+    .then(async () => {
+      try {
       // Schedule the action
-      scheduleAction(newData._id, datetime, timezone);
-      res.redirect('/success');
+        await scheduleAction(newData._id, datetime, timezone);
+        res.redirect('/success');
+      } catch (error) {
+        logToDB({logLevel: 'fatal', logType: 'Submit email schedule', message: `Error submitting schedule: ${error}`});
+        res.redirect('/error');
+      }
     })
     .catch(error => {
       logToDB({logLevel: 'fatal', logType: 'Submit email schedule', message: `Error submitting schedule: ${error}`});
-      res.status(500).send('Error saving data');
+      res.redirect('/error');
   });
 });
 
@@ -197,13 +208,17 @@ app.get('/success', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'success.html'));
 });
 
+// Route for error page
+app.get('/error', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'error.html'));
+} );
+
 app.get('/getLogs', (req, res) => {
   Log.find().sort({ timestamp: -1 })
     .then(logs => {
       res.json(logs);
     })
     .catch(error => {
-      console.error('Error retrieving logs:', error);
       res.status(500).send('Error retrieving logs');
       logToDB({logLevel: 'error', logType: 'Retrieve logs', message: `Error retrieving logs: ${error}`});
     });
@@ -215,14 +230,12 @@ app.get('/getJobs', (req, res) => {
       res.json(jobs);
     })
     .catch(error => {
-      console.error('Error retrieving jobs:', error);
       res.status(500).send('Error retrieving jobs');
       logToDB({logLevel: 'error', logType: 'Retrieve jobs', message: `Error retrieving jobs: ${error}`});
     });
 });
 
 app.post('/cancelJob', async (req, res) => {
-  console.log('🚀 ~ app.post ~ cancelJob:')
   try {
     const { jobId } = req.body;
     const job = jobsArray.find(job => job.id === jobId);
@@ -236,14 +249,12 @@ app.post('/cancelJob', async (req, res) => {
     res.status(200).send('Job canceled successfully');
     
   } catch (error) {
-    console.error('Error cancelling job:', error);
     res.redirect('/error');
     logToDB({logLevel: 'fatal', logType: 'Cancel job', message: `Error cancelling job: ${error}`});
   }
 });
 
 app.post('/cancelAllJobs', async (req, res) => {
-  console.log('🚀 ~ app.post ~ cancelAllJobs:')
   try {
     // Cancel all jobs
     jobsArray.forEach(job => job.job.cancel());
@@ -253,7 +264,6 @@ app.post('/cancelAllJobs', async (req, res) => {
     await Job.updateMany({}, { status: 'cancelled' })
     res.status(200).send('Jobs canceled successfully');
   } catch (error) {
-    console.error('Error cancelling all jobs:', error);
     res.redirect('/error');
     logToDB({logLevel: 'fatal', logType: 'Cancel all jobs', message: `Error cancelling all jobs: ${error}`});
   }
@@ -264,7 +274,6 @@ app.post('/delete-files', (req, res) => {
     deleteFilesInUploadsDir();
     res.redirect('/files-delete-success');
   } catch (error) {
-    console.error('Error deleting files:', error);
     res.status(500).send('Error deleting files');
     logToDB({logLevel: 'error', logType: 'Delete files', message: `Error deleting files: ${error}`});
   }
@@ -281,7 +290,6 @@ app.post('/delete-logs', (req, res) => {
       res.redirect('/logs-delete-success');
     })
     .catch(error => {
-      console.error('Error deleting logs:', error);
       res.status(500).send('Error deleting logs');
       logToDB({logLevel: 'error', logType: 'Delete logs', message: `Error deleting logs: ${error}`});
     });
@@ -297,7 +305,6 @@ app.post('/delete-jobs-db', (req, res) => {
       res.redirect('/jobs-db-delete-success');
     })
     .catch(error => {
-      console.error('Error deleting jobs db:', error);
       res.status(500).send('Error deleting jobs db');
       logToDB({logLevel: 'error', logType: 'Delete jobs db', message: `Error deleting jobs db: ${error}`});
     });
