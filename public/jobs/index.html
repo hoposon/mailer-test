@@ -16,7 +16,7 @@
           let tableHtml = '<table>';
           data.forEach(job => {
             tableHtml += `<tr><td>${job.scheduledTime}</td><td>${job.status}</td>`
-            if (job.jobId && job.status !== 'sent' && job.status !== 'cancelled') {
+            if (job.jobId && job.status !== 'sent' && job.status !== 'cancelled' && job.scheduledTime > new Date().toISOString()) {
               tableHtml += `<td><button onclick="cancelJob('${job.jobId}')">Cancel job</button></td></tr>`;
             } else {
               tableHtml += `<td></td></tr>`;

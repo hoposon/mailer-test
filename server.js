@@ -225,7 +225,7 @@ app.get('/getLogs', (req, res) => {
 });
 
 app.get('/getJobs', (req, res) => {
-  Job.find()
+  Job.find().sort({ scheduledTime: 1 })
     .then(jobs => {
       res.json(jobs);
     })
