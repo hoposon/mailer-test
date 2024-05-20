@@ -15,11 +15,13 @@
           // console.log('🚀 ~ data:', data)
           let tableHtml = '<table>';
           data.forEach(job => {
-            tableHtml += `<tr><td>${job.scheduledTime}</td><td>${job.status}</td>`
+            tableHtml += `<tr><td>${job.scheduledTime}</td>`
             if (job.jobId && job.status !== 'sent' && job.status !== 'cancelled' && new Date(job.scheduledTime) > new Date()) {
-              tableHtml += `<td><button onclick="cancelJob('${job.jobId}')">Cancel job</button></td></tr>`;
+              tableHtml += `<td>${job.status}</td><td><button onclick="cancelJob('${job.jobId}')">Cancel job</button></td></tr>`;
+            } else if (job.jobId && (job.status === 'sent' || job.status === 'cancelled')) {
+              tableHtml += `<td>${job.status}</td><td></td></tr>`;
             } else {
-              tableHtml += `<td></td></tr>`;
+              tableHtml += `<td>unknown</td><td></td></tr>`;
             }
           });
           tableHtml += '</table>';
