@@ -8,6 +8,7 @@ const moment = require('moment-timezone');
 const {sendMail} = require('./mailer');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
+const { body, validationResult } = require('express-validator');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -99,7 +100,6 @@ async function scheduleAction(dataId, scheduledDate, timezone) {
       logToDB({logLevel: 'fatal', logType: 'Email Schedule', message: `Email scheduled in the past | Schedule submitted at ${moment.tz(new Date(), timezone)} | Email sent scheduled to ${moment.tz(scheduledDate, timezone)}`});
       throw 'Email scheduled in the past';
     }
-    
     job = schedule.scheduleJob(serverMoment.toDate(), async function() {
       try {
         const data = await Data.findById(dataId);
@@ -130,9 +130,7 @@ async function scheduleAction(dataId, scheduledDate, timezone) {
   } catch (error) {
     logToDB({logLevel: 'fatal', logType: 'Email Schedule', message: `Error scheduling email: ${error}`})
     throw 'Error scheduling job'
-  }
-  
-  
+  }  
 }
 
 
@@ -175,32 +173,57 @@ function logToDB(message) {
 
 
 // Routes
-app.post('/submit', upload.array('attachments', 5), (req, res) => {
-  const { name, email, toemail, password, subject, mailText, datetime, timezone } = req.body;
-  const attachments = req.files.map(file => {
-    return {
-      filename: file.originalname,
-      path: file.path,
-      contentType: file.mimetype,
-    };
-  });
-  
-  const newData = new Data({ name, email, toemail, password, subject, mailText, sendTime:datetime, timezone, attachments });
-  newData.save()
-    .then(async () => {
-      try {
-      // Schedule the action
-        await scheduleAction(newData._id, datetime, timezone);
-        res.redirect('/success');
-      } catch (error) {
+app.post(
+  '/submit', 
+  upload.array('attachments', 5), 
+  [
+    // Validate and sanitize input fields
+    body('name').notEmpty().withMessage('Name is required'),
+    body('email').isEmail().withMessage('Invalid email format'),
+    body('toemail').isEmail().withMessage('Invalid recipient email format'),
+    body('password').notEmpty().withMessage('Password is required'),
+    body('subject').notEmpty().withMessage('Subject is required'),
+    body('mailText').notEmpty().withMessage('Email text is required'),
+    body('datetime').isISO8601().toDate().withMessage('Invalid datetime format'),
+    body('timezone').notEmpty().withMessage('Timezone is required'),
+  ],
+  (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      // If there are validation errors, log them and redirect to the error page
+      const errorMessages = errors.array().map(err => err.msg).join(', ');
+      logToDB({
+        logLevel: 'error',
+        logType: 'Validation Error',
+        message: `Validation errors: ${errorMessages}`,
+      });
+      return res.redirect('/error');
+    }
+    const { name, email, toemail, password, subject, mailText, datetime, timezone } = req.body;
+    const attachments = req.files.map(file => {
+      return {
+        filename: file.originalname,
+        path: file.path,
+        contentType: file.mimetype,
+      };
+    });
+    
+    const newData = new Data({ name, email, toemail, password, subject, mailText, sendTime:datetime, timezone, attachments });
+    newData.save()
+      .then(async () => {
+        try {
+        // Schedule the action
+          await scheduleAction(newData._id, datetime, timezone);
+          res.redirect('/success');
+        } catch (error) {
+          logToDB({logLevel: 'fatal', logType: 'Submit email schedule', message: `Error submitting schedule: ${error}`});
+          res.redirect('/error');
+        }
+      })
+      .catch(error => {
         logToDB({logLevel: 'fatal', logType: 'Submit email schedule', message: `Error submitting schedule: ${error}`});
         res.redirect('/error');
-      }
-    })
-    .catch(error => {
-      logToDB({logLevel: 'fatal', logType: 'Submit email schedule', message: `Error submitting schedule: ${error}`});
-      res.redirect('/error');
-  });
+    });
 });
 
 // Route for success page
