@@ -189,7 +189,7 @@ app.post(
     body('password').notEmpty().withMessage('Password is required'),
     body('subject').notEmpty().withMessage('Subject is required'),
     body('mailText').notEmpty().withMessage('Email text is required'),
-    body('datetime').isISO8601().toDate().withMessage('Invalid datetime format'),
+    // body('datetime').isISO8601().toDate().withMessage('Invalid datetime format'),
     body('timezone').notEmpty().withMessage('Timezone is required'),
   ],
   (req, res) => {
