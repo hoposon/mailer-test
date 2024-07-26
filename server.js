@@ -198,7 +198,7 @@ app.post(
       // If there are validation errors, log them and redirect to the error page
       const errorMessages = errors.array().map(err => err.msg).join(', ');
       logToDB({
-        logLevel: 'error',
+        logLevel: 'fatal',
         logType: 'Validation Error',
         message: `Validation errors: ${errorMessages}`,
       });
