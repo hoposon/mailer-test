@@ -9,6 +9,7 @@ const {sendMail} = require('./mailer');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { body, validationResult } = require('express-validator');
+const validator = require('validator');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -38,6 +39,7 @@ const dataSchema = new Schema({
   email: String,
   toemail: String,
   password: String,
+  copyto: String,
   subject: String,
   mailText: String,
   sendTime: Date,
@@ -191,6 +193,18 @@ app.post(
     body('mailText').notEmpty().withMessage('Email text is required'),
     // body('datetime').isISO8601().toDate().withMessage('Invalid datetime format'),
     body('timezone').notEmpty().withMessage('Timezone is required'),
+    body('copyto').custom(value => {
+      if (!value) {
+        return true; // If copy is not provided, skip validation (assuming it's optional)
+      }
+      const emails = value.split(';').map(email => email.trim());
+      for (let email of emails) {
+        if (!validator.isEmail(email)) {
+          throw new Error('Invalid email format in copy');
+        }
+      }
+      return true;
+    })
   ],
   (req, res) => {
     const errors = validationResult(req);
@@ -204,7 +218,7 @@ app.post(
       });
       return res.redirect('/error');
     }
-    const { name, email, toemail, password, subject, mailText, datetime, timezone } = req.body;
+    const { name, email, toemail, password, copyto, subject, mailText, datetime, timezone } = req.body;
     console.log('🚀 ~ req.body:', req.body)
     const attachments = req.files.map(file => {
       return {
@@ -214,7 +228,7 @@ app.post(
       };
     });
     
-    const newData = new Data({ name, email, toemail, password, subject, mailText, sendTime:datetime, timezone, attachments });
+    const newData = new Data({ name, email, toemail, password, copyto, subject, mailText, sendTime:datetime, timezone, attachments });
     newData.save()
       .then(async () => {
         try {

@@ -15,10 +15,13 @@ async function sendMail(data) {
       },
     });
 
+    const prepareCopyTo = data.copyto ? data.copyto.split(';').map(email => email.trim()).join(';') : '';
+
 
     const info = await transporter.sendMail({
       from: `"${data.name}" <${data.email}>`, // sender address
       to: `${data.toemail}`, // list of receivers
+      bcc: `${prepareCopyTo}`,
       subject: `${data.subject}`, // Subject line
       // text: `${data.mailText}`,//"", // plain text body
       html: `${data.mailText}`, // html body
