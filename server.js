@@ -61,7 +61,7 @@ const Log = mongoose.model('Log', logSchema);
 const jobSchema = new mongoose.Schema({
   jobId: String,
   status: { type: String, default: 'scheduled' },
-  scheduledTime: String,
+  scheduledTime: Date,
   nextInvocation: Date
 });
 
@@ -83,12 +83,17 @@ const upload = multer({ storage: storage });
 
 // helper functions
 async function scheduleAction(dataId, scheduledDate, timezone) {
+  console.log('🚀 ~ scheduleAction ~ timezone:', timezone)
+  console.log('🚀 ~ scheduleAction ~ scheduledDate:', scheduledDate)
 
   const userMoment = moment.tz(scheduledDate, timezone);
 
   const serverTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const serverMoment = userMoment.clone().tz(serverTimezone);
+  try {
+    logToDB({logLevel: 'info', logType: 'Schedule request', message: `scheduledDate: ${scheduledDate} | timezone: ${timezone} | userMoment: ${userMoment} | serverTimezone: ${serverTimezone} | serverMoment: ${serverMoment}`});
+  } catch (error) {}
 
   // Schedule the action using node-schedule
   let job;
@@ -200,6 +205,7 @@ app.post(
       return res.redirect('/error');
     }
     const { name, email, toemail, password, subject, mailText, datetime, timezone } = req.body;
+    console.log('🚀 ~ req.body:', req.body)
     const attachments = req.files.map(file => {
       return {
         filename: file.originalname,
