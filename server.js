@@ -254,8 +254,27 @@ app.get('/getLogs', (req, res) => {
 });
 
 app.get('/getJobs', (req, res) => {
-  Job.find().sort({ scheduledTime: -1 })
+  // Job.find().sort({ scheduledTime: -1 })
+  //   .then(jobs => {
+  //     res.json(jobs);
+  //   })
+  //   .catch(error => {
+  //     res.status(500).send('Error retrieving jobs');
+  //     logToDB({logLevel: 'error', logType: 'Retrieve jobs', message: `Error retrieving jobs: ${error}`});
+  //   });
+
+  Job.find()
     .then(jobs => {
+      // Convert `scheduledTime` to Date if it's a string
+      jobs.forEach(job => {
+        if (typeof job.scheduledTime === 'string') {
+          job.scheduledTime = new Date(job.scheduledTime);
+        }
+      });
+      
+      // Sort the jobs based on `scheduledTime` in descending order
+      jobs.sort((a, b) => b.scheduledTime - a.scheduledTime);
+
       res.json(jobs);
     })
     .catch(error => {
